@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TensorFlow.js Model Prediction</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+</head>
+<body>
+    <h1>TensorFlow.js Model Prediction</h1>
+    <input type="file" id="imageUpload" accept="image/*">
+    <br><br>
+    <button id="predictButton" disabled>Predict</button>
+    <h3 id="predictionResult"></h3>
+    <script>
+        let model;
+        let uploadedImage;
+
+        document.getElementById('imageUpload').addEventListener('change', handleImageUpload);
+        document.getElementById('predictButton').addEventListener('click', () => predict(uploadedImage));
+
+        async function loadModel() {
+            model = await tf.loadLayersModel('model.json');
+            console.log("Model loaded");
+        }
+
+        async function handleImageUpload(event) {
+            const file = event.target.files[0];
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const img = new Image();
+                img.src = e.target.result;
+                img.onload = () => {
+                    uploadedImage = img;
+                    document.getElementById('predictButton').disabled = false; // Enable the predict button
+                };
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function predict(img) {
+            if (!img) {
+                console.error("No image uploaded");
+                return;
+            }
+
+            const tensor = tf.browser.fromPixels(img)
+                .resizeNearestNeighbor([224, 224])
+                .toFloat()
+                .expandDims();
+
+            const predictions = await model.predict(tensor).data();
+            const result = Array.from(predictions)
+                .map((prob, index) => ({prob, className: index}))
+                .sort((a, b) => b.prob - a.prob)[0];
+            
+            document.getElementById('predictionResult').innerText = `Predicted Class: ${result.className}, Probability: ${result.prob.toFixed(2)}`;
+        }
+
+        // Load model on page load
+        window.onload = loadModel;
+    </script>
+</body>
+</html>
